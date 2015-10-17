@@ -17,11 +17,12 @@
 %
 % (a) Temperature grid (T_ss, in ºC)
 % (b) Steady-state isotherm (half-width) location (y_ss, in m)
-% (c) Half-width of melt pool (y_m, in m)
-% (d) Grid granularity (d_T, in ºC)
+% (c) Grid granularity (d_T, in ºC)
+% (d) Widths at laser location and maximum melt pool width
+%    (width.laser and width.max, both in m)
 %
 % Example:
-% [T_ss,y_ss,y_m,d_T] = DMLSoffline(195,0.800,4.0,4,false)
+% [T_ss,y_ss,d_T,width] = DMLSoffline(195,0.800,0.65,5,false)
 %
 % Developed by: Felipe Lopez, based on Devesse's IMM model
 %
@@ -35,9 +36,10 @@
 %
 % 09/03/2015    Convergence was verified with order p = 3.
 % 10/15/2015    First deployable version uploaded to GitHub.
+% 10/16/2015    Adjusted maximum width instead of laser-height width
 %
 
-function [T_ss,y_ss,y_m,d_T] = DMLSoffline(P,v,A,n1,plot_flag)
+function [T_ss,y_ss,d_T,width] = DMLSoffline(P,v,A,n1,plot_flag)
 %% Definition of global variables
 global T_m m alpha_0
 global T dT T_0 T_max hl t_sim
@@ -53,8 +55,7 @@ n = round((T_0-T_max)/dT); % Number of gridpoints (integer)
 T = T_max:dT:(T_0-dT); % Temperature grid (n-long array of temperatures)
 m = length(T)-n1+1; % Location of melting isotherm (integer)
 %% Definition of initial state
-alpha_0 = k(T_max)/rho(T_max)/Cp(T_max);
-y_nom = zeros(n,1);
+alpha_0 = ThermalDiffusivity(T_max); y_nom = zeros(n,1);
 % Rosenthal's solution
 for i=1:n
    c1 = (T(i)-T_0)*2*pi*rho(T_max)*Cp(T_max)*alpha_0/A/P;
@@ -65,16 +66,23 @@ end
 S = 4.0*alpha_0/v/v; % Characteristic time (s)
 t_sim = 1.0e+5*S; % Simulation time: Looong time (s)
 [t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A),[0 t_sim],y_nom);
+% Compute maximum width
+L = 2.0*ThermalDiffusivity(T_m)/v;
+C = y_array(:,m).*exp(y_array(:,m)/L);
+a = C/2 + L/4*lambertw(2.0*C/L);
+b = sqrt(L^2*lambertw(C./L.*exp((C-a)/L)).^2 - (C-a).^2);
+width_vector = 2.0e+6*b;
 % Plot
 if plot_flag
     figure (1)
-    plot(1.0e+3*t_array,1.0e+6*y_array(:,1),'b','LineWidth',2.0); hold on;
-    plot(1.0e+3*t_array,1.0e+6*y_array(:,m),'r','LineWidth',2.0); grid on;
-    legend('Max. temperature (2250 ºC)', 'Melting temperature (1314 ºC)');
-    xlabel('Time (ms)'); ylabel('Melt pool width (\mu m)');
-    xlim([0 1.0+3*t_sim]);
+    plot(1.0e+3*t_array,width_vector,'r','LineWidth',2.0); grid on;
+    xlabel('Time (ms)'); ylabel('Melt pool width (\mum)');
+    xlim([0 1.0+3*t_sim]); ylim(width_vector(end)*[0.8 1.2]);
 end
-T_ss = T; y_ss = y_array(end,:); y_m = y_array(end,m); d_T = dT;
+% Output results
+T_ss = T; y_ss = y_array(end,:); d_T = dT;
+width.laser = 2.0e+6*y_array(end,m);
+width.max = width_vector(end); 
 end
 
 function alpha_transition = SmoothThermalDiffusivity(T,tau)
