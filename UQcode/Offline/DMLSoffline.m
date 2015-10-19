@@ -1,4 +1,4 @@
-% Program SLM_steady_MonteCarlo
+% Program DMLSoffline
 %
 % Purpose: The function simulates the isotherm migration method (IMM)
 % equations to find the  steady-state location of isotherms.
@@ -11,22 +11,22 @@
 % (c) Absorption coefficient (A)
 % (d) Number of isotherms between T_0 and T_m (n1, integer)
 % (e) plot_flag (boolean indicating whether to plot convergence or not)
-% (g) perct (standard deviation)
 %
 % Outputs:
 % =======
 %
 % (a) Temperature grid (T_ss, in ºC)
 % (b) Steady-state isotherm (half-width) location (y_ss, in m)
-% (c) Half-width of melt pool (y_m, in m)
-% (d) Grid granularity (d_T, in ºC)
+% (c) Grid granularity (d_T, in ºC)
+% (d) Widths at laser location and maximum melt pool width
+%    (width.laser and width.max, both in m)
 %
 % Example:
-% [T_ss,y_ss,y_m,d_T] = SLM_steady(195,0.800,1.7,20,true,false)
+% [T_ss,y_ss,d_T,width] = DMLSoffline(195,0.800,0.6,5,false)
 %
 % Developed by: Felipe Lopez, based on Devesse's IMM model
 %
-% Date: 09/03/2015
+% Date: 10/15/2015
 %
 % Ref: W. Devesse et al., Int. Journal of Heat and Mass Transfer 75(2015),
 % pp. 726-735.
@@ -35,31 +35,19 @@
 % ================
 %
 % 09/03/2015    Convergence was verified with order p = 3.
+% 10/15/2015    First deployable version uploaded to GitHub.
+% 10/16/2015    Adjusted maximum width instead of laser-height width
 %
 
-function [T_ss,y_ss,y_m,d_T] = SLM_steady_MonteCarlo(P,v,A,n1,plot_flag,perct)
+function [T_ss,y_ss,d_T,width] = DMLSoffline(P,v,A,n1,plot_flag)
 %% Definition of global variables
 global T_m m alpha_0
 global T dT T_0 T_max hl t_sim
-global delta_alpha
-%% Adjust inputs
-P = normrnd(P,P*perct.P);
-% Read scan speed
-v = normrnd(v,v*perct.v);
-% Read absorption coefficient
-A = normrnd(A,A*perct.A);
 %% Read thermophysical properties
 T_m = 1320.0; % Melting temperature (ºC)
 T_0 = 80.0; % Room temperature (ºC)
-max_T = 5020.0; % Maximum (user-defined) temperature in the grid (ºC) (Li Ma said 2263.0)
+max_T = 2560.0; % Maximum (user-defined) temperature in the grid (ºC)
 hl = 2.97e+5; % Latent heat of fusion (J/kg)
-%% Adjust material properties
-% Read latent heat
-hl = normrnd(hl,hl*perct.hl);
-% Read melting temperature
-T_m = normrnd(T_m,T_m*perct.T_m);
-% Read thermal 
-delta_alpha = normrnd(0,perct.alpha);
 %% Definition of the temperature grid
 dT = -(T_m-T_0)/n1; % Temperature increment in isotherms (dT < 0, ºC)
 T_max = T_0-floor((T_0-max_T)/dT)*dT; % Maximum temperature in grid (ºC)
@@ -67,8 +55,7 @@ n = round((T_0-T_max)/dT); % Number of gridpoints (integer)
 T = T_max:dT:(T_0-dT); % Temperature grid (n-long array of temperatures)
 m = length(T)-n1+1; % Location of melting isotherm (integer)
 %% Definition of initial state
-alpha_0 = ThermalDiffusivity(T_max);
-y_nom = zeros(n,1);
+alpha_0 = ThermalDiffusivity(T_max); y_nom = zeros(n,1);
 % Rosenthal's solution
 for i=1:n
    c1 = (T(i)-T_0)*2*pi*rho(T_max)*Cp(T_max)*alpha_0/A/P;
@@ -79,16 +66,23 @@ end
 S = 4.0*alpha_0/v/v; % Characteristic time (s)
 t_sim = 1.0e+5*S; % Simulation time: Looong time (s)
 [t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A),[0 t_sim],y_nom);
+% Compute maximum width
+L = 2.0*ThermalDiffusivity(T_m)/v;
+C = y_array(:,m).*exp(y_array(:,m)/L);
+a = C/2 + L/4*lambertw(2.0*C/L);
+b = sqrt(L^2*lambertw(C./L.*exp((C-a)/L)).^2 - (C-a).^2);
+width_vector = 2.0e+6*b;
 % Plot
 if plot_flag
     figure (1)
-    plot(1.0e+3*t_array,1.0e+6*y_array(:,1),'b','LineWidth',2.0); hold on;
-    plot(1.0e+3*t_array,1.0e+6*y_array(:,m),'r','LineWidth',2.0); grid on;
-    legend('Max. temperature (2820 ºC)', 'Melting temperature (1314 ºC)');
-    xlabel('Time (ms)'); ylabel('Melt pool width (\mu m)');
-    xlim([0 1.0+3*t_sim]);
+    plot(1.0e+3*t_array,width_vector,'r','LineWidth',2.0); grid on;
+    xlabel('Time (ms)'); ylabel('Melt pool width (\mum)');
+    xlim([0 1.0+3*t_sim]); ylim(width_vector(end)*[0.8 1.2]);
 end
-T_ss = T; y_ss = y_array(end,:); y_m = y_array(end,m); d_T = dT;
+% Output results
+T_ss = T; y_ss = y_array(end,:); d_T = dT;
+width.laser = 2.0e+6*y_array(end,m);
+width.max = width_vector(end); 
 end
 
 function alpha_transition = SmoothThermalDiffusivity(T,tau)
@@ -97,9 +91,7 @@ alpha_transition = alpha_0+(ThermalDiffusivity(T)-alpha_0)*tau;
 end
 
 function alpha = ThermalDiffusivity(T)
-global delta_alpha
 alpha = k(T)./Cp(T)./rho(T); % Thermal diffusivity
-alpha = alpha + alpha*delta_alpha;
 end
 
 function k=k(T)
@@ -116,7 +108,7 @@ end
 function Cp=Cp(T)
 global T_max
 % Linear interpolation for specific heat given temperature-dependent
-% data
+% data.
 T_Cp_array = [21.0 93.0 204.0 316.0 427.0 538.0 649.0 760.0 871.0 ...
     982.0 1093.0 T_max]; % % Array of temperatures (ºC)
 Cp_array = [410 427 456 481 511 536 565 590 620 645 ...

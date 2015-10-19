@@ -45,7 +45,7 @@ global T dT T_0 T_max hl t_sim
 %% Read thermophysical properties
 T_m = 1320.0; % Melting temperature (ºC)
 T_0 = 80.0; % Room temperature (ºC)
-max_T = 2350.0; % Maximum (user-defined) temperature in the grid (ºC) (Li Ma said 2263.0)
+max_T = 2560.0; % Maximum (user-defined) temperature in the grid (ºC) (Li Ma said 2263.0)
 hl = 2.97e+5; % Latent heat of fusion (J/kg)
 %% Definition of the temperature grid
 dT = -(T_m-T_0)/n1; % Temperature increment in isotherms (dT < 0, ºC)
