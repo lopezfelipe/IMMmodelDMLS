@@ -33,7 +33,7 @@ for i=3:length(P) % Do only 150W and 195W
     end
 end
 
-UQ_error = 21.4; % 95% confidence interval in model predictions
+UQ_error = 38.8; % 95% confidence interval in model predictions
 % Constant speed
 figure(1)
 subplot(2,1,1)

@@ -56,6 +56,6 @@ errorbar(v_mm_s,widths(3,3:end-1),e,'rs','LineWidth',2.0); hold on;
 errorbar(v_mm_s,widths(4,3:end-1),e,'bd','LineWidth',2.0);
 plot(v_mm_s,pred_widths(3,3:end-1),'r');
 plot(v_mm_s,pred_widths(4,3:end-1),'b');
-xlabel('Power (W)'); ylabel('Width (\mum)');
+xlabel('Scan speed (mm/s)'); ylabel('Width (\mum)');
 title(['Comparison for A = ',num2str(A)]);
 legend('150 W', '195 W'); xlim([0 1200]); ylim([0 200]); grid on;
