@@ -66,33 +66,58 @@ end
 S = 4.0*alpha_0/v/v; % Characteristic time (s)
 t_sim = 1.0e+5*S; % Simulation time: Looong time (s)
 [t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A,'steady'),[0 t_sim],y_nom);
-%% Simulate transient
+%% Simulate transient for power
 [t_array2,y_array2] = ode23s(@(t,x)SLM_Rate(t,x,[0.5*P,v],A,'transient'),[t_sim 2.0*t_sim],y_array(end,:)');
 % Find characteristic time
 y_mod = 1-(y_array2(1,m)-y_array2(1:10,m))/(y_array2(1,m)-y_array2(end,m));
 t_mod = t_array2(1:10)-t_array2(1);
 f = fit(t_mod,y_mod,'exp1');
-tau_c = -1.0/f.b; % Characteristic time
-%% Concatenate
-t_array_ = [t_array;t_array2];
-y_array_ = [y_array;y_array2];
+tau_P = -1.0/f.b; % Characteristic time
+% Concatenate
+t_array_.Power = [t_array;t_array2];
+y_array_.Power = [y_array;y_array2];
 P_array_ = [P*ones(size(t_array)); 0.5*P*ones(size(t_array2))];
 % Compute maximum width
 L = 2.0*ThermalDiffusivity(T_m)/v;
-C = y_array_(:,m).*exp(y_array_(:,m)/L);
+C = y_array_.Power(:,m).*exp(y_array_.Power(:,m)/L);
 a = C/2 + L/4*lambertw(2.0*C/L);
 b = sqrt(L^2*lambertw(C./L.*exp((C-a)/L)).^2 - (C-a).^2);
-width_vector = 2.0e+6*b;
+width_vector.Power = 2.0e+6*b;
+%% Simulate transient for scan speed
+[t_array3,y_array3] = ode23s(@(t,x)SLM_Rate(t,x,[P,0.7*v],A,'transient'),[t_sim 2.0*t_sim],y_array(end,:)');
+% Find characteristic time
+y_mod = 1-(y_array3(1,m)-y_array3(1:10,m))/(y_array3(1,m)-y_array3(end,m));
+t_mod = t_array3(1:10)-t_array3(1);
+f = fit(t_mod,y_mod,'exp1');
+tau_v = -1.0/f.b; % Characteristic time
+% Concatenate
+t_array_.Speed = [t_array;t_array3];
+y_array_.Speed = [y_array;y_array3];
+v_array_ = [v*ones(size(t_array)); 0.7*v*ones(size(t_array3))];
+% Compute maximum width
+C = y_array_.Speed(:,m).*exp(y_array_.Speed(:,m)/L);
+a = C/2 + L/4*lambertw(2.0*C/L);
+b = sqrt(L^2*lambertw(C./L.*exp((C-a)/L)).^2 - (C-a).^2);
+width_vector.Speed = 2.0e+6*b;
 %% Plot
 if plot_flag
     figure(1)
-    [ax,p1,p2] = plotyy(1.0e+3*t_array_,P_array_,1.0e+3*t_array_,width_vector,'plot','plot');
+    subplot(2,1,1)
+    [ax,p1,p2] = plotyy(1.0e+3*t_array_.Power,P_array_,1.0e+3*t_array_.Power,width_vector.Power,'plot','plot');
     xlim(ax(1),1.0e+3*[(t_sim-2*S) (t_sim+4*S)]);
     xlim(ax(2),1.0e+3*[(t_sim-2*S) (t_sim+4*S)]);
     grid(ax(1),'on'); p1.LineWidth = 2.0; p2.LineWidth = 2.0;
     xlabel(ax(1), 'Time (ms)'); ylabel(ax(1), 'Laser power (W)');
-    ylabel(ax(2), 'Melt pool width (\mum)');
-    text(1.0e+3*(t_sim+2*S),width_vector(end)+25.0,['tau = ',num2str(1.0e+3*tau_c),' ms']);
+    ylabel(ax(2), 'Melt pool width (\mum)'); title('Dynamic response for v = 800mm/s');
+    text(1.0e+3*(t_sim+1*S),P_array_(end)+25.0,['tau = ',num2str(1.0e+3*tau_P),' ms']);
+    subplot(2,1,2)
+    [ax,p1,p2] = plotyy(1.0e+3*t_array_.Speed,1.0e+3*v_array_,1.0e+3*t_array_.Speed,width_vector.Speed,'plot','plot');
+    xlim(ax(1),1.0e+3*[(t_sim-2*S) (t_sim+4*S)]);
+    xlim(ax(2),1.0e+3*[(t_sim-2*S) (t_sim+4*S)]);
+    grid(ax(1),'on'); p1.LineWidth = 2.0; p2.LineWidth = 2.0;
+    xlabel(ax(1), 'Time (ms)'); ylabel(ax(1), 'Scan speed (mm/s)');
+    ylabel(ax(2), 'Melt pool width (\mum)'); title('Dynamic response for P = 195 W');
+    text(1.0e+3*(t_sim+1*S),1.0e+3*v_array_(end)+75.0,['tau = ',num2str(1.0e+3*tau_v),' ms']);
 end
 d_T = dT;
 end
