@@ -68,6 +68,11 @@ t_sim = 1.0e+5*S; % Simulation time: Looong time (s)
 [t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A,'steady'),[0 t_sim],y_nom);
 %% Simulate transient
 [t_array2,y_array2] = ode23s(@(t,x)SLM_Rate(t,x,[0.5*P,v],A,'transient'),[t_sim 2.0*t_sim],y_array(end,:)');
+% Find characteristic time
+y_mod = 1-(y_array2(1,m)-y_array2(1:10,m))/(y_array2(1,m)-y_array2(end,m));
+t_mod = t_array2(1:10)-t_array2(1);
+f = fit(t_mod,y_mod,'exp1');
+tau_c = -1.0/f.b; % Characteristic time
 %% Concatenate
 t_array_ = [t_array;t_array2];
 y_array_ = [y_array;y_array2];
@@ -86,7 +91,8 @@ if plot_flag
     xlim(ax(2),1.0e+3*[(t_sim-2*S) (t_sim+4*S)]);
     grid(ax(1),'on'); p1.LineWidth = 2.0; p2.LineWidth = 2.0;
     xlabel(ax(1), 'Time (ms)'); ylabel(ax(1), 'Laser power (W)');
-    ylabel(ax(2), 'Melt pool width (\mum)'); 
+    ylabel(ax(2), 'Melt pool width (\mum)');
+    text(1.0e+3*(t_sim+2*S),width_vector(end)+25.0,['tau = ',num2str(1.0e+3*tau_c),' ms']);
 end
 d_T = dT;
 end
