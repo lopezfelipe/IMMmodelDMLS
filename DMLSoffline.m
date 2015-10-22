@@ -9,8 +9,9 @@
 % (a) Power (P, in W)
 % (b) Speed (v, in m/s)
 % (c) Absorption coefficient (A)
-% (d) Number of isotherms between T_0 and T_m (n1, integer)
-% (e) plot_flag (boolean indicating whether to plot convergence or not)
+% (d) Diffusion efficiency (mu)
+% (e) Number of isotherms between T_0 and T_m (n1, integer)
+% (f) plot_flag (boolean indicating whether to plot convergence or not)
 %
 % Outputs:
 % =======
@@ -22,7 +23,7 @@
 %    (width.laser and width.max, both in m)
 %
 % Example:
-% [T_ss,y_ss,d_T,width] = DMLSoffline(195,0.800,0.6,5,false)
+% [T_ss,y_ss,d_T,width] = DMLSoffline(195,0.800,0.6,1.0,5,false)
 %
 % Developed by: Felipe Lopez, based on Devesse's IMM model
 %
@@ -37,9 +38,10 @@
 % 09/03/2015    Convergence was verified with order p = 3.
 % 10/15/2015    First deployable version uploaded to GitHub.
 % 10/16/2015    Adjusted maximum width instead of laser-height width
+% 10/22/2015    Included mu as an extra parameter.
 %
 
-function [T_ss,y_ss,d_T,width] = DMLSoffline(P,v,A,n1,plot_flag)
+function [T_ss,y_ss,d_T,width] = DMLSoffline(P,v,A,mu,n1,plot_flag)
 %% Definition of global variables
 global T_m m alpha_0
 global T dT T_0 T_max hl t_sim
@@ -56,7 +58,7 @@ T = T_max:dT:(T_0-dT); % Temperature grid (n-long array of temperatures)
 m = length(T)-n1+1; % Location of melting isotherm (integer)
 %% Definition of initial state
 alpha_0 = ThermalDiffusivity(T_max); y_nom = zeros(n,1);
-% Rosenthal's solution
+% Rosenthal's solution for initial guess of steady-state
 for i=1:n
    c1 = (T(i)-T_0)*2*pi*rho(T_max)*Cp(T_max)*alpha_0/A/P;
    c2 = 2*alpha_0/v;
@@ -65,7 +67,7 @@ end
 %% Simulate to find true steady-state
 S = 4.0*alpha_0/v/v; % Characteristic time (s)
 t_sim = 1.0e+5*S; % Simulation time: Looong time (s)
-[t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A),[0 t_sim],y_nom);
+[t_array,y_array] = ode23s(@(t,x)SLM_Rate(t,x,[P,v],A,mu),[0 t_sim],y_nom);
 % Compute maximum width
 L = 2.0*ThermalDiffusivity(T_m)/v;
 C = y_array(:,m).*exp(y_array(:,m)/L);
@@ -127,7 +129,7 @@ rho_array = [8620 8536 8316 8022 8014 7977 7928 7863 7777 7660 ...
 rho = interp1(T_rho_array,rho_array,T,'linear')'; % 1-D data interpolation
 end
 
-function y_dot=SLM_Rate(t,x,u,A)
+function y_dot=SLM_Rate(t,x,u,A,mu)
 global alpha hl m
 global T dT T_0 T_max T_m t_sim
 %% Read inputs
@@ -169,12 +171,12 @@ y_dot(m) = -(alpha_/y(m)/C3)*(y(m+1)/(y(m+1)-y(m)) - y(m-1)/(y(m)-y(m-1))) ...
     + (C1*C2*v*v/4/alpha_/C3)*(1+2*(Ste^-1)*(1+(C1*C2*v/2/alpha_)^2)^-1);
 % For m < i < n-1
 for i=m+1:n-1
-    alpha_ = alpha(i);
+    alpha_ = mu*alpha(i);
     y_dot(i) = -(alpha_/y(i))*(y(i+1)/(y(i+1)-y(i))-y(i-1)/(y(i)...
         -y(i-1)))+(v*v/8/alpha_)*(T(i)-T_0)*(y(i+1)-y(i-1))/dT;
 end
 % For i = n
-alpha_ = alpha(n);
+alpha_ = mu*alpha(n);
 y_dot(n) = -alpha_/y(n)*((y(n)-2*y(n-1))/(y(n)-y(n-1)))-(v*v/4/alpha_)*...
     (y(n)-y(n-1));
 end
