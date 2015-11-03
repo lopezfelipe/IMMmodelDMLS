@@ -6,7 +6,7 @@ end
 % h3 = 620ºC (n1=2), h2 = 310ºC (n1=4), and 248ºC (n1=5)
 n1 = [5, 4, 2];
 for i=1:length(n1)
-   [~,~,d_T(i),width(i)] = DMLSoffline(195,0.800,0.6,n1(i),false) ;
+   [~,~,d_T(i),width(i)] = SLMsteady(195,0.800,0.6,1.0,n1(i),false) ;
 end
 phi = [width.max]; % Predictions
 epsilon_32 = phi(3)-phi(2); r_32 = d_T(3)/d_T(2);

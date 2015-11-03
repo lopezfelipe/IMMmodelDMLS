@@ -28,7 +28,7 @@ widths(4,4) = 125; widths(4,5) = NaN; widths(4,6) = 115;
 pred_widths = zeros(length(P),length(v)); % Array of predicted widths
 for i=3:length(P) % Do only 150W and 195W
     for j=3:length(v)-1 % Do only 600mm/s, 800mm/s, and 1000mm/s
-        [T_ss,y_ss,d_T,width] = DMLSoffline(P(i),v(j),abs,5,false);
+        [T_ss,y_ss,d_T,width] = SLMsteady(P(i),v(j),abs,1.0,5,false);
         pred_widths(i,j) = width.max;
     end
 end
