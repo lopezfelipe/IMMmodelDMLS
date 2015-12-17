@@ -1,8 +1,12 @@
-# IsothermMigrationModel
+﻿# IsothermMigrationModel
 
 An implementation of the isotherm migration method for heat transfer in spherical coordinates, as proposed by Devesse (JHMT, 2014), to model melting and solidification in the Direct Metal Laser Sintering (DMLS) process. The model includes only heat transfer, which is modeled with a diffusion equation with temperature-dependent thermal diffusivity. The state vector is given by the half-widths of isotherms corresponding to a user-defined temperature grid.
 
-This directory includes: 1) Comparisons with melt pool width measurements, 2) Uncertainty quantification for offline predictions, 3) A process estimator for online operation.
+This directory includes:
+
+1) Comparisons with melt pool width measurements,
+
+
 
 # Disclaimers
 
