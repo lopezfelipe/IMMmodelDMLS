@@ -1,6 +1,6 @@
 % Code snippet CompareCMU_Pv
 %
-% Purpose: Compare melt pool widhts predicted for DMLS of Alloy 625 in an
+% PURPOSE: Compare melt pool widhts predicted for DMLS of Alloy 625 in an
 % EOS M270 machine with experimental data provided by Colt Montgomery
 % (cmontogom@andrew.cmu.edu). Comparisons are shown for different laser
 % powers at 800 mm/s and for different speeds at 195 W.
